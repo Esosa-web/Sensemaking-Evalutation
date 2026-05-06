@@ -1,0 +1,14 @@
+# Output data from test runs
+data/sample-output/
+
+# Don't commit API keys
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
