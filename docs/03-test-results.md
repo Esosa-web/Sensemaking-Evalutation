@@ -108,13 +108,122 @@ Interpretation: Stage 2 is useful for identifying rich, reflective, report-worth
 
 ---
 
+## Test 2b: Bridging scores on quote-extraction output
+
+**Date:** 2026-05-07
+**Input:** `data/output-quote-extraction/categorized_without_other_filtered.csv`
+**Output:** `data/output-quote-extraction/bridging_scores.csv`
+**Status:** Complete
+
+This reran constructive quality scoring on the quote-extraction output rather than the baseline full-response quotes.
+
+### Comparison with baseline scoring
+
+| Metric | Baseline mean | Quote-extraction mean | Change |
+|--------|---------------|-----------------------|--------|
+| `CURIOSITY_EXPERIMENTAL` | 0.130 | 0.051 | Down |
+| `PERSONAL_STORY_EXPERIMENTAL` | 0.427 | 0.240 | Down |
+| `REASONING_EXPERIMENTAL` | 0.866 | 0.822 | Down |
+| `AVERAGE_OF_3_BRIDGING` | 0.474 | 0.371 | Down |
+
+The quote-extraction scores are lower overall. The maximum average bridging score dropped from 0.850 in the baseline run to 0.633 in the quote-extraction run.
+
+Highest average bridging scores in the quote-extraction run:
+
+| participant_id | topic | average |
+|----------------|-------|---------|
+| P005 | Physical Environment and Technology | 0.633 |
+| P010 | Flexibility and Work-Life Balance | 0.617 |
+| P003 | Career Growth and Learning | 0.617 |
+| P009 | Communication and Collaboration Effectiveness | 0.617 |
+| P002 | Flexibility and Work-Life Balance | 0.600 |
+| P017 | Organizational Culture, Values, and Leadership | 0.533 |
+
+Lowest average bridging scores included P024 flexibility by job type (0.243), P025 IT support (0.267), P021 parking/public transport (0.283), P020 work-life boundaries (0.283), and P014 leadership diversity (0.283).
+
+Notable instability: P024 was the highest-scoring row in the baseline run at 0.850, but the lowest-scoring row in the quote-extraction run at 0.243, despite retaining substantially similar quote text. This suggests the bridging scorer is sensitive to prompt/context or run variance and should not be overinterpreted at row level.
+
+Interpretation: scoring extracted quotes gives a stricter, lower set of scores. The scores remain useful as a rough signal for surfacing rich illustrative quotes, but they are not stable or semantically broad enough to rank issue importance.
+
+---
+
 ## Test 3: With quote extraction
 
-_To run — remove --skip_quote_extraction flag and re-run. Compare extracted sentences against the full-response quotes in Test 1._
+**Date:** 2026-05-07
+**Model:** gemini-2.5-flash
+**Input:** data/sample-input.csv (25 responses)
+**Output:** `data/output-quote-extraction/`
+**Flags:** --skip_autoraters
+**Status:** Complete
+
+This run removed `--skip_quote_extraction`, so the pipeline attempted to extract specific supporting snippets before learning and assigning opinions.
+
+### Output shape
+
+| Output | Rows | Participants | Notes |
+|--------|------|--------------|-------|
+| Baseline `categorized_without_other_filtered.csv` | 28 | 25 | Full response reused as quote. |
+| Quote extraction `categorized_with_other_filtered.csv` | 30 | 25 | Includes one `Other` opinion row. |
+| Quote extraction `categorized_without_other_filtered.csv` | 29 | 24 | P013 is dropped because its opinion is `Other`. |
+
+The quote-extraction run preserved the same broad structure as the baseline: 7 main topic areas and 27 unique opinions. Topic names shifted slightly, e.g. `Organizational Culture, Values, and Leadership Practices` became `Organizational Culture, Values, and Leadership`.
+
+### Operational stats
+
+| Stage | Jobs | API calls | 503 errors | 429 errors | Duration |
+|-------|------|-----------|------------|------------|----------|
+| Quote Extraction | 56 | 168 | 112 | 0 | 2.66 mins |
+| Opinion Identification | 14 | 42 | 28 | 0 | 2.87 mins |
+| Opinion Categorization | 14 | 28 | 14 | 0 | 2.20 mins |
+
+Total run time was 7.73 minutes. Paid Gemini access avoided 429 quota exhaustion, but the run still hit many transient `503 UNAVAILABLE` errors. The tool recovered automatically through retries and global pauses.
+
+### Quality assessment
+
+Quote extraction was mixed but mostly useful.
+
+Good examples:
+
+- P003: dropped the generic opener and kept the career progression evidence.
+- P005: kept the noisy office / isolation evidence and dropped the suggested solution.
+- P006: dropped the positive team-culture aside and kept the outdated-tools claim.
+- P009: kept the cross-department collaboration issue and dropped the proposed fix.
+- P010: kept the workload/evenings/weekends evidence and dropped the headcount solution.
+
+Limitations:
+
+- Many extracted quotes are still the full response, so extraction did not consistently produce short evidence snippets.
+- P004 is repeated three times with the same full quote for three wellbeing opinions. The opinions are plausible, but the evidence is not separated.
+- P012, P016, and P020 reuse the same quote across multiple topics/opinions. This is defensible, but not truly sentence-level evidence.
+- P013 got worse than the baseline: onboarding was assigned under `Career Growth and Learning` with opinion `Other`, so it disappears from `categorized_without_other_filtered.csv`.
+- Auto-discovered topic names shifted between runs, showing that unguided topic discovery is not fully stable.
+
+Verdict: quote extraction improves evidence precision in some cases, but it is inconsistent and more expensive operationally. It is worth keeping in the evaluation, especially for report evidence, but should not be trusted without review or prompt tuning.
 
 ## Test 4: With seed topics
 
-_To run — add --topics flag with predefined categories and compare model-assigned topics against the automatically discovered ones from Test 1._
+_Deferred — Gemini returned repeated `503 UNAVAILABLE` errors before the run made progress._
+
+This test should still be run in a future evaluation. It is important because seed topics would show whether the tool can follow a predefined research framework rather than inventing categories from scratch.
+
+Recommended future command shape:
+
+```bash
+python -m src.categorization_runner \
+    --output_dir data/output-seed-topics \
+    --input_file data/sample-input.csv \
+    --model_name gemini-2.5-flash \
+    --skip_autoraters \
+    --skip_quote_extraction \
+    --topics "Communication and Collaboration,Flexibility and Work-Life Balance,Career Growth and Learning,Compensation and Benefits,Physical Environment and Technology,Employee Wellbeing,Organizational Culture and Leadership"
+```
+
+Questions to answer when run:
+
+- Does seeding improve consistency across runs?
+- Does it reduce topic-name drift?
+- Are responses forced into weaker categories?
+- Does it produce cleaner downstream summaries?
 
 ---
 

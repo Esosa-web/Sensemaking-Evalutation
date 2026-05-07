@@ -157,7 +157,7 @@ Output columns added by categorisation:
 - [x] Review and document output quality
 - [x] Run constructive quality scoring
 - [ ] Run with quote extraction enabled
-- [ ] Run with seed topics
+- [ ] Run with seed topics (deferred after repeated Gemini 503s; still recommended)
 - [x] Fill in docs/03-test-results.md
 - [x] Fill in docs/04-recommendations.md
 

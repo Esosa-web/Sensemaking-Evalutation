@@ -8,7 +8,9 @@ The topic and opinion output from 25 synthetic workplace survey responses is coh
 
 1. **Does the output quality justify the cost?**
    - Early signal is positive for topic discovery and opinion labelling.
-   - Needs comparison against a human-coded baseline, especially once quote extraction is enabled.
+   - Quote extraction improved evidence precision in several cases, but it was inconsistent and sometimes reused full responses.
+   - Bridging scores changed substantially between full-response quotes and extracted quotes, so they should be treated as a rough surfacing aid rather than a reliable ranking metric.
+   - Needs comparison against a human-coded baseline before relying on it for polished reporting.
 
 2. **Is the Gemini dependency acceptable?**
    - The current code is deeply Gemini-specific: SDK calls, structured response schemas, safety settings, retry handling, and model names all assume Google.
@@ -18,7 +20,8 @@ The topic and opinion output from 25 synthetic workplace survey responses is coh
 3. **What would it take to use this on our own data?**
    - Input needs at least `participant_id` and `survey_text`.
    - We should provide domain context and likely seed topics for real evaluations.
-   - For scale, the main change should be throttling/concurrency control. The default async worker pool can burst requests and hit quota limits.
+   - For scale, the main change should be throttling/concurrency control. The default async worker pool can burst requests and hit quota or availability limits.
+   - Quote extraction substantially increases API calls, so it should be used when evidence snippets matter, not by default for every exploratory run.
 
 4. **Build vs. adapt vs. skip?**
    - Short term: use as an evaluation sandbox.
@@ -32,8 +35,8 @@ Do not skip. The output quality is promising enough to continue.
 Do not adopt as-is yet. Before using it on real data, run at least:
 
 - A quote-extraction-enabled run.
-- A seed-topic run.
+- A seed-topic run. This was deferred because Gemini returned repeated 503s before progress, but it remains important for testing whether the tool can follow a predefined research framework.
 - A human review of topic/opinion quality.
 - A small scale test with explicit concurrency throttling or a paid quota.
 
-Most likely path: adapt the approach, keep the checkpointed staged pipeline, and add stricter operational controls around model provider, rate limiting, and data handling.
+Most likely path: adapt the approach, keep the checkpointed staged pipeline, and add stricter operational controls around model provider, rate limiting, quote-extraction settings, and data handling.

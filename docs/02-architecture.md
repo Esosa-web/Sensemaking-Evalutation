@@ -2,6 +2,21 @@
 
 How the sensemaking-tools pipeline works under the hood.
 
+## Full pipeline
+
+The Jigsaw repo contains a broader six-stage workflow. This evaluation has run stages 1 and 2 so far, and is moving toward stage 3.
+
+| Stage | Module | Purpose | Status in this evaluation |
+|-------|--------|---------|---------------------------|
+| 1. Categorisation | `src.categorization_runner` | Discovers topics, extracts quotes, learns opinions, and maps quotes to topic/opinion rows. | Completed baseline and quote-extraction runs. |
+| 2. Constructive Quality Scoring | `src.get_bridging_scores` | Scores quotes for curiosity, personal story, reasoning, and average bridging value. | Completed on baseline output; next run should score quote-extraction output. |
+| 3. Discussion Summarisation | `src.generate_report_text.generate_report_text` | Generates opinion summaries, topic summaries, and an overview summary. | Next stage to run. |
+| 4. Interactive Report | `src/report_ui` | Builds a browser UI from categorized quotes, scores, and generated summaries. | Not yet run. |
+| 5. Proposition Generation | `src.propositions.proposition_generator` | Generates possible consensus statements/propositions. | Not yet run. |
+| 6. Simulated Jury / Proposition Refinement | `src.proposition_refinement` | Simulates participant reactions and ranks/refines propositions by likely agreement. | Not yet run. |
+
+Stage 1 is itself a multi-step pipeline, described below.
+
 ## High-level flow
 
 ```
@@ -92,3 +107,36 @@ Intermediate results are saved as pickle files after each major step:
 - `statements_with_opinions`
 
 This means if a run fails at step 3, rerunning the same command picks up from step 3 without re-doing steps 1 and 2. Delete the checkpoint files (or use `--force_rerun`) to start fresh.
+
+## Recommended downstream CSV
+
+For most follow-on analysis, use `categorized_without_other_filtered.csv`.
+
+This file keeps the main human-readable analysis columns:
+
+- `participant_id`
+- `survey_text`
+- `quote`
+- `topic`
+- `opinion`
+
+It drops rows assigned to the `Other` topic or `Other` opinion, which keeps downstream scoring, summarisation, and report generation focused on meaningful themes rather than low-confidence leftovers. It also removes internal/helper columns such as `quote_id` and `quote_with_brackets`, which are useful for debugging or UI plumbing but usually not needed for human review.
+
+Quality review should still inspect the `with_other` outputs occasionally. If many rows land in `Other`, that is a signal that the topic framework may be incomplete or that the model is struggling to categorise the data.
+
+## Why there are several categorized files
+
+The runner writes several versions of the categorisation output because different downstream tasks need different levels of detail.
+
+| File | Purpose |
+|------|---------|
+| `categorized_semifinal.csv` | Mid-pipeline output after topic assignment and quote extraction, before final opinion assignment. Useful for debugging interrupted runs. |
+| `categorized_with_other.csv` | Full final output, including rows assigned to `Other`. Useful for quality review. |
+| `categorized_without_other.csv` | Full final output with `Other` topic/opinion rows removed. |
+| `categorized_with_other_filtered.csv` | Human-readable analysis columns only, but still includes `Other`. |
+| `categorized_without_other_filtered.csv` | Human-readable analysis columns only, with `Other` removed. This is the usual downstream input. |
+| `categorized_with_other_topic_tree.txt` | Readable topic/opinion hierarchy and counts. |
+
+The output is not one row per participant. It is one row per quote/topic/opinion assignment. A single survey response can therefore appear multiple times if it contains several distinct claims.
+
+For example, P004 says that mental health support needs improvement, the EAP is under-advertised, and managers should do wellbeing check-ins. The quote-extraction run mapped that one response to three wellbeing opinions, so P004 appears three times in the final filtered output. This multiplication happens during opinion categorisation and final CSV formatting, not in the original input.

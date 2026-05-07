@@ -46,4 +46,4 @@ See [docs/01-setup-guide.md](docs/01-setup-guide.md) to get the environment runn
 - [x] Initial results analysis
 - [x] Initial recommendations write-up
 - [ ] Run with quote extraction enabled
-- [ ] Run with seed topics
+- [ ] Run with seed topics (deferred after repeated Gemini 503s; still recommended)
