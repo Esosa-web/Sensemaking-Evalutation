@@ -10,18 +10,22 @@ An internal evaluation of Jigsaw's open-source sensemaking-tools (https://github
 data/
   sample-input.csv                        # 25 synthetic workplace survey responses
   sample-output/                          # Output from pipeline runs (gitignored)
-    categorized_semifinal.csv             # Intermediate output — topics assigned, opinions incomplete
+    categorized_semifinal.csv             # Intermediate output — topics assigned
+    categorized_without_other_filtered.csv # Final stage 1 output for downstream steps
+    bridging_scores.csv                   # Stage 2 constructive quality scores
     .checkpoints/                         # Pickle files for resuming interrupted runs
     .logs/                                # Debug, info, warning, error, stats logs per run
 docs/
   01-setup-guide.md                       # How to get the environment running
   02-architecture.md                      # How the pipeline works under the hood
-  03-test-results.md                      # Template — fill in after runs
-  04-recommendations.md                   # Template — fill in after evaluation
+  03-test-results.md                      # Test results
+  04-recommendations.md                   # Evaluation recommendation
 notes/
   observations.md                         # Running notes during testing
 scripts/
   run-test.sh                             # Main test script
+  resume-run.sh                           # Resume without deleting checkpoints
+  run-stage2-scoring.sh                   # Run constructive quality scoring
   test-api.py                             # Quick Gemini API connection check
 ```
 
@@ -71,7 +75,7 @@ Run this from inside `~/Downloads/sensemaking-tools/`.
 
 ## The full pipeline (6 stages)
 
-Only stage 1 has been run so far. Each stage feeds into the next.
+Stages 1 and 2 have been run on the sample data. Each stage feeds into the next.
 
 1. Categorisation (`src.categorization_runner`) — discovers topics and maps responses to them. This is the entry point and must run first.
 2. Constructive Quality Scoring (`src.get_bridging_scores`) — scores quotes on reasoning quality and curiosity
@@ -115,13 +119,15 @@ Topics discovered automatically (no seed topics provided):
 - Organizational Culture, Values, and Leadership Practices
 - Other
 
-The run was killed at 86% through opinion categorisation due to sustained rate limiting. The categorized_semifinal.csv was written with all 25 responses assigned to topics. Final output files were not produced.
+The first attempt was killed at 86% through opinion categorisation due to sustained rate limiting. The categorized_semifinal.csv was written with all 25 responses assigned to topics. A later resume from checkpoints completed the stage 1 output files.
 
-Rate limiting behaviour: the pipeline fires all 7 topic batches concurrently, which consistently triggers 429 RESOURCE_EXHAUSTED errors on the free tier. The tool handles these automatically — it pauses 27-60 seconds and retries. This is expected, not a bug, but it makes runs slow.
+Rate limiting behaviour: the pipeline uses an async worker pool with a default maximum of 100 concurrent workers. Even a small dataset can send several topic/opinion batches near-simultaneously, which can trigger 429 RESOURCE_EXHAUSTED errors on the Gemini free tier. The tool handles these automatically — it pauses and retries. This is expected, not a bug, but it makes runs slow and noisy.
 
 Checkpointing: pickle files are saved after each major step. If a run is killed, re-running the python command directly (not the shell script) will resume from the last checkpoint. The shell script wipes checkpoints on every run.
 
 Multiple topic assignment: one response can be assigned to more than one topic. Output row count can exceed input count.
+
+Completed sample output: 25 input responses produced 28 categorized rows after removing "Other". The topic tree contains 7 named topics and 27 unique opinions. Stage 2 produced bridging scores for the same 28 rows.
 
 Output columns added by categorisation:
 - `quote` — extracted sentence or full response if quote extraction skipped
@@ -139,6 +145,7 @@ Output columns added by categorisation:
 | `categorized_with_other_filtered.csv` | Full completion | Key columns only, includes Other |
 | `categorized_without_other_filtered.csv` | Full completion | Key columns only, Other removed — use this for downstream steps |
 | `categorized_with_other_topic_tree.txt` | Full completion | Human-readable topic/opinion hierarchy |
+| `bridging_scores.csv` | Stage 2 completion | Adds curiosity, personal story, reasoning, and average bridging scores |
 
 ## Current evaluation status
 
@@ -146,12 +153,13 @@ Output columns added by categorisation:
 - [x] Environment setup (venv, dependencies, API key)
 - [x] API connection verified
 - [x] First pipeline run (partial — topics assigned, opinions incomplete due to rate limiting)
-- [ ] Complete first run
-- [ ] Review and document output quality
+- [x] Complete first run by resuming from checkpoints
+- [x] Review and document output quality
+- [x] Run constructive quality scoring
 - [ ] Run with quote extraction enabled
 - [ ] Run with seed topics
-- [ ] Fill in docs/03-test-results.md
-- [ ] Fill in docs/04-recommendations.md
+- [x] Fill in docs/03-test-results.md
+- [x] Fill in docs/04-recommendations.md
 
 ## Notes on free tier limits
 

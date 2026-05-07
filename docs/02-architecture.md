@@ -62,6 +62,14 @@ All LLM calls go through `GenaiModel`, which handles:
 
 Responses are batched dynamically — the system targets ~20k tokens per batch with a max of 50 items, adapting to keep within Gemini's context window.
 
+## Concurrency and rate limits
+
+The pipeline is built for throughput, not for free-tier friendliness. `GenaiModel` starts an async worker pool with a default maximum of 100 concurrent workers. When a stage prepares multiple prompt batches, those batches are pushed into a queue and workers start calling Gemini in parallel.
+
+That means a small dataset can still produce a short burst of many near-simultaneous requests. On the Gemini free tier, `gemini-2.5-flash` is limited to roughly 15 requests per minute, so a burst of topic or opinion jobs can exhaust the per-minute quota even when the total number of calls is low. The observed symptom is `429 RESOURCE_EXHAUSTED`: the API tells the client to wait, the tool triggers a global pause, then all workers resume and retry.
+
+This behaviour is expected from the current implementation. It is not losing work because failed calls retry and completed stages checkpoint, but it makes wall-clock runtime noisy. A production or low-quota evaluation run would benefit from an explicit concurrency cap closer to the model's request-per-minute limit, or from a client-side rate limiter that spaces calls instead of sending them in bursts.
+
 ## Gemini dependency
 
 The codebase is tightly coupled to the Google Gemini SDK (`google-genai`). Key integration points:

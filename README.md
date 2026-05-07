@@ -26,6 +26,8 @@ data/
   sample-output/             # Raw output from runs
 scripts/
   run-test.sh                # Reproducible test commands
+  resume-run.sh              # Resume from checkpoints without wiping output
+  run-stage2-scoring.sh      # Run constructive quality scoring
 notes/
   observations.md            # Running notes during testing
 ```
@@ -37,7 +39,11 @@ See [docs/01-setup-guide.md](docs/01-setup-guide.md) to get the environment runn
 ## Status
 
 - [x] Initial code review
-- [ ] Environment setup
-- [ ] First test run (small dataset, free tier)
-- [ ] Results analysis
-- [ ] Recommendations write-up
+- [x] Environment setup
+- [x] First test run (small dataset, free tier)
+- [x] Resumed run to full categorisation output
+- [x] Stage 2 constructive quality scoring
+- [x] Initial results analysis
+- [x] Initial recommendations write-up
+- [ ] Run with quote extraction enabled
+- [ ] Run with seed topics
